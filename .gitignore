@@ -216,3 +216,17 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Kubernetes secrets
+**/secret.yaml
+**/*-secret.yaml
+# Local env files
+.env
+*.env
+# Docker
+.docker/
+# IDE
+.vscode/
+.idea/
+# Helm lock files
+Chart.lock
