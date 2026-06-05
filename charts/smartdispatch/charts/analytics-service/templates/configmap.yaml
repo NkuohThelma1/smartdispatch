@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ include "svcname" . }}-config
+  name: {{ .Chart.Name }}-config
   namespace: smartdispatch
 data:
   KAFKA_BOOTSTRAP: {{ .Values.global.kafkaBootstrap | default "smartdispatch-kafka-kafka-bootstrap.kafka.svc.cluster.local:9092" | quote }}
