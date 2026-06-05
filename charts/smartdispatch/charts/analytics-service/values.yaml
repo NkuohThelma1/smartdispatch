@@ -1,0 +1,10 @@
+replicaCount: 1
+port: 8005
+image:
+  repository: thelma06/smartdispatch-analytics-service
+  tag: "0.1.0"
+  pullPolicy: IfNotPresent
+hpa:
+  minReplicas: 1
+  maxReplicas: 3
+  cpuTarget: 70

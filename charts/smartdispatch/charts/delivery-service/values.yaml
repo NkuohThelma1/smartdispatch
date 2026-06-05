@@ -1,0 +1,11 @@
+replicaCount: 1
+port: 8003
+matcher: "nearest"
+image:
+  repository: thelma06/smartdispatch-delivery-service
+  tag: "0.1.0"
+  pullPolicy: IfNotPresent
+hpa:
+  minReplicas: 1
+  maxReplicas: 3
+  cpuTarget: 70

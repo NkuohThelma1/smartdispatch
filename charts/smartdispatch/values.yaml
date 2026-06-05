@@ -1,0 +1,73 @@
+# ── Global values shared by all sub-charts ────────────────────────────────────
+global:
+  imageTag: "0.1.0"
+  jwtSecret: "change-me-in-production"
+  storageClass: "standard"
+  kafkaBootstrap: "smartdispatch-kafka-kafka-bootstrap.kafka.svc.cluster.local:9092"
+
+# ── Ingress ───────────────────────────────────────────────────────────────────
+ingress:
+  enabled: true
+  host: smartdispatch.local
+
+# ── Per-service overrides ─────────────────────────────────────────────────────
+user-service:
+  replicaCount: 1
+  port: 8001
+  image:
+    repository: thelma06/smartdispatch-user-service
+    tag: "0.1.0"
+    pullPolicy: IfNotPresent
+  hpa:
+    minReplicas: 1
+    maxReplicas: 3
+    cpuTarget: 70
+
+order-service:
+  replicaCount: 1
+  port: 8002
+  image:
+    repository: thelma06/smartdispatch-order-service
+    tag: "0.1.0"
+    pullPolicy: IfNotPresent
+  hpa:
+    minReplicas: 1
+    maxReplicas: 3
+    cpuTarget: 70
+
+delivery-service:
+  replicaCount: 1
+  port: 8003
+  matcher: "nearest"
+  image:
+    repository: thelma06/smartdispatch-delivery-service
+    tag: "0.1.0"
+    pullPolicy: IfNotPresent
+  hpa:
+    minReplicas: 1
+    maxReplicas: 3
+    cpuTarget: 70
+
+notification-service:
+  replicaCount: 1
+  port: 8004
+  image:
+    repository: thelma06/smartdispatch-notification-service
+    tag: "0.1.0"
+    pullPolicy: IfNotPresent
+  hpa:
+    minReplicas: 1
+    maxReplicas: 3
+    cpuTarget: 70
+
+analytics-service:
+  replicaCount: 1
+  port: 8005
+  image:
+    repository: thelma06/smartdispatch-analytics-service
+    tag: "0.1.0"
+    pullPolicy: IfNotPresent
+  hpa:
+    minReplicas: 1
+    maxReplicas: 3
+    cpuTarget: 70

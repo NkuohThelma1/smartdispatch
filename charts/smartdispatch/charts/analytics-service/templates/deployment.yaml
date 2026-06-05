@@ -1,0 +1,63 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "svcname" . }}
+  namespace: smartdispatch
+  labels:
+    app: {{ include "svcname" . }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ include "svcname" . }}
+  template:
+    metadata:
+      labels:
+        app: {{ include "svcname" . }}
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: "/metrics"
+        prometheus.io/port: {{ .Values.port | toString | quote }}
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        fsGroup: 10001
+      containers:
+        - name: {{ include "svcname" . }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Values.global.imageTag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy | default "IfNotPresent" }}
+          ports:
+            - containerPort: {{ .Values.port }}
+          envFrom:
+            - configMapRef:
+                name: {{ include "svcname" . }}-config
+            - secretRef:
+                name: {{ include "svcname" . }}-secret
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: {{ .Values.port }}
+            initialDelaySeconds: 10
+            periodSeconds: 15
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: {{ .Values.port }}
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          volumeMounts:
+            - name: data
+              mountPath: /data
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: {{ include "svcname" . }}-data
