@@ -1,0 +1,162 @@
+// SmartDispatch CI/CD Pipeline — Jenkinsfile (Declarative)
+// Stages: Lint → Build → Scan → Push → Deploy → Smoke Test → Manual Gate → Prod Deploy
+
+pipeline {
+    agent any
+
+    environment {
+        DOCKER_REGISTRY  = "docker.io"
+        DOCKER_USER      = credentials('dockerhub-username')
+        DOCKER_PASS      = credentials('dockerhub-password')
+        IMAGE_TAG        = "${env.BUILD_NUMBER}"
+        KUBECONFIG       = credentials('kubeconfig-smartdispatch')
+        SERVICES         = "user-service order-service delivery-service notification-service analytics-service"
+    }
+
+    stages {
+
+        // ── Stage 1: Lint Python ──────────────────────────────────────────────
+        stage('Lint Python') {
+            steps {
+                script {
+                    def services = env.SERVICES.tokenize()
+                    for (svc in services) {
+                        sh """
+                            pip install ruff --quiet
+                            ruff check services/${svc}/app/ --select E,W,F
+                        """
+                    }
+                }
+            }
+        }
+
+        // ── Stage 2: Build Docker Images ──────────────────────────────────────
+        stage('Build Images') {
+            steps {
+                script {
+                    def services = env.SERVICES.tokenize()
+                    for (svc in services) {
+                        sh """
+                            docker build \
+                                -t ${DOCKER_REGISTRY}/${DOCKER_USER}/smartdispatch-${svc}:${IMAGE_TAG} \
+                                -t ${DOCKER_REGISTRY}/${DOCKER_USER}/smartdispatch-${svc}:latest \
+                                -f services/${svc}/Dockerfile \
+                                services/${svc}/
+                        """
+                    }
+                }
+            }
+        }
+
+        // ── Stage 3: Trivy Image Scan (fail on HIGH/CRITICAL) ─────────────────
+        stage('Scan Images (Trivy)') {
+            steps {
+                script {
+                    def services = env.SERVICES.tokenize()
+                    for (svc in services) {
+                        sh """
+                            trivy image \
+                                --severity HIGH,CRITICAL \
+                                --exit-code 1 \
+                                --no-progress \
+                                ${DOCKER_REGISTRY}/${DOCKER_USER}/smartdispatch-${svc}:${IMAGE_TAG}
+                        """
+                    }
+                }
+            }
+        }
+
+        // ── Stage 4: Push to Registry ─────────────────────────────────────────
+        stage('Push Images') {
+            steps {
+                script {
+                    sh "echo ${DOCKER_PASS} | docker login ${DOCKER_REGISTRY} -u ${DOCKER_USER} --password-stdin"
+                    def services = env.SERVICES.tokenize()
+                    for (svc in services) {
+                        sh """
+                            docker push ${DOCKER_REGISTRY}/${DOCKER_USER}/smartdispatch-${svc}:${IMAGE_TAG}
+                            docker push ${DOCKER_REGISTRY}/${DOCKER_USER}/smartdispatch-${svc}:latest
+                        """
+                    }
+                }
+            }
+        }
+
+        // ── Stage 5: Helm Deploy to smartdispatch namespace ───────────────────
+        stage('Helm Deploy (staging)') {
+            steps {
+                sh """
+                    helm upgrade --install smartdispatch ./charts/smartdispatch \
+                        --namespace smartdispatch \
+                        --create-namespace \
+                        --set global.imageTag=${IMAGE_TAG} \
+                        --wait \
+                        --timeout 5m
+                """
+            }
+        }
+
+        // ── Stage 6: Smoke Test /healthz on all services ──────────────────────
+        stage('Smoke Test') {
+            steps {
+                script {
+                    def portMap = [
+                        "user-service"        : 8001,
+                        "order-service"       : 8002,
+                        "delivery-service"    : 8003,
+                        "notification-service": 8004,
+                        "analytics-service"   : 8005
+                    ]
+                    portMap.each { svc, port ->
+                        sh """
+                            kubectl run smoke-${svc.replace('-','')}-${BUILD_NUMBER} \
+                                --image=curlimages/curl:latest \
+                                --restart=Never \
+                                --rm \
+                                --attach \
+                                -n smartdispatch \
+                                -- curl -sf http://${svc}:${port}/healthz
+                        """
+                    }
+                }
+            }
+        }
+
+        // ── Stage 7: Manual Approval Gate ─────────────────────────────────────
+        stage('Approval: Promote to Prod?') {
+            steps {
+                input(
+                    message: "Promote build ${IMAGE_TAG} to production namespace?",
+                    ok: "Deploy to Prod",
+                    submitterParameter: "APPROVED_BY"
+                )
+            }
+        }
+
+        // ── Stage 8: Deploy to production namespace ───────────────────────────
+        stage('Helm Deploy (prod)') {
+            steps {
+                sh """
+                    helm upgrade --install smartdispatch-prod ./charts/smartdispatch \
+                        --namespace smartdispatch-prod \
+                        --create-namespace \
+                        --set global.imageTag=${IMAGE_TAG} \
+                        --wait \
+                        --timeout 5m
+                """
+            }
+        }
+    }
+
+    post {
+        always {
+            sh "docker logout ${DOCKER_REGISTRY} || true"
+        }
+        success {
+            echo "Pipeline succeeded — build ${IMAGE_TAG} deployed to SmartDispatch."
+        }
+        failure {
+            echo "Pipeline FAILED. Check logs above for details."
+        }
+    }
+}

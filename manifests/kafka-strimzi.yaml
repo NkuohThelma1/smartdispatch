@@ -1,0 +1,138 @@
+# ── Kafka Cluster ─────────────────────────────────────────────────────────────
+apiVersion: kafka.strimzi.io/v1beta2
+kind: Kafka
+metadata:
+  name: smartdispatch-kafka
+  namespace: kafka
+spec:
+  kafka:
+    version: 3.7.0
+    replicas: 1
+    listeners:
+      - name: plain
+        port: 9092
+        type: internal
+        tls: false
+    config:
+      offsets.topic.replication.factor: 1
+      transaction.state.log.replication.factor: 1
+      transaction.state.log.min.isr: 1
+      # Disable auto topic creation — all topics must exist via KafkaTopic CRDs
+      auto.create.topics.enable: "false"
+    storage:
+      type: persistent-claim
+      size: 1Gi
+      deleteClaim: false
+  zookeeper:
+    replicas: 1
+    storage:
+      type: persistent-claim
+      size: 1Gi
+      deleteClaim: false
+  entityOperator:
+    topicOperator: {}
+    userOperator: {}
+---
+# ── PodDisruptionBudget for broker ────────────────────────────────────────────
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: smartdispatch-kafka-pdb
+  namespace: kafka
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      strimzi.io/name: smartdispatch-kafka-kafka
+---
+# ── Kafka Topics — all 7 SmartDispatch event streams ─────────────────────────
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: user-registered
+  namespace: kafka
+  labels:
+    strimzi.io/cluster: smartdispatch-kafka
+spec:
+  partitions: 3
+  replicas: 1
+  config:
+    retention.ms: 604800000
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: order-placed
+  namespace: kafka
+  labels:
+    strimzi.io/cluster: smartdispatch-kafka
+spec:
+  partitions: 3
+  replicas: 1
+  config:
+    retention.ms: 604800000
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: order-cancelled
+  namespace: kafka
+  labels:
+    strimzi.io/cluster: smartdispatch-kafka
+spec:
+  partitions: 3
+  replicas: 1
+  config:
+    retention.ms: 604800000
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: delivery-assigned
+  namespace: kafka
+  labels:
+    strimzi.io/cluster: smartdispatch-kafka
+spec:
+  partitions: 3
+  replicas: 1
+  config:
+    retention.ms: 604800000
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: delivery-confirmed
+  namespace: kafka
+  labels:
+    strimzi.io/cluster: smartdispatch-kafka
+spec:
+  partitions: 3
+  replicas: 1
+  config:
+    retention.ms: 604800000
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: delivery-completed
+  namespace: kafka
+  labels:
+    strimzi.io/cluster: smartdispatch-kafka
+spec:
+  partitions: 3
+  replicas: 1
+  config:
+    retention.ms: 604800000
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: notification-sent
+  namespace: kafka
+  labels:
+    strimzi.io/cluster: smartdispatch-kafka
+spec:
+  partitions: 3
+  replicas: 1
+  config:
+    retention.ms: 604800000
