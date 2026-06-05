@@ -17,7 +17,7 @@ FROM python:3.12-slim AS final
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
-RUN adduser -r -u 10001 appuser
+RUN adduser --system --uid 10001 --no-create-home appuser
 
 WORKDIR /app
 
@@ -26,7 +26,7 @@ COPY --from=builder /install /usr/local
 COPY app/ ./app/
 COPY requirements.txt .
 
-RUN chown -R appuser:appuser /app
+RUN chown -R appuser /app
 
 USER appuser
 

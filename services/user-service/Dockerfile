@@ -24,7 +24,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 # Create a non-root user with UID 10001 (lecturer requires UID ≥ 10001)
 # -r = system account, -u = set UID, no home directory needed
-RUN adduser -r -u 10001 appuser
+RUN adduser --system --uid 10001 --no-create-home appuser
 
 WORKDIR /app
 
@@ -36,7 +36,7 @@ COPY app/ ./app/
 COPY requirements.txt .
 
 # Give appuser ownership of the working directory
-RUN chown -R appuser:appuser /app
+RUN chown -R appuser /app
 
 # Switch to non-root user — all commands after this run as appuser
 USER appuser

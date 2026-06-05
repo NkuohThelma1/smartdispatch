@@ -1,0 +1,23 @@
+# The following CVEs affect OS-level packages in the python:3.12-slim
+# (Debian 13.5) base image. No fixed version is available from Debian
+# as of the build date. These are base image vulnerabilities outside
+# the application's control and are documented here per the assignment
+# requirement to "document any whitelisted CVEs".
+
+# ncurses - Buffer overflow (no fix available in Debian 13.5)
+CVE-2025-69720
+
+# perl-base - Path traversal via crafted symlinks (no fix available)
+CVE-2026-42496
+
+# perl-base - Heap buffer overflow (no fix available)
+CVE-2026-8376
+
+# perl-base - Archive::Tar hardlink attack (no fix available)
+CVE-2026-42497
+
+# perl-base - IO-Compress arbitrary code execution (no fix available)
+CVE-2026-48962
+
+# perl-base - Archive::Tar memory exhaustion (no fix available)
+CVE-2026-9538
