@@ -218,6 +218,11 @@ __marimo__/
 .streamlit/secrets.toml
 
 # Kubernetes secrets
+
+# Node.js / frontend builds
+node_modules/
+frontend/node_modules/
+frontend/dist/
 **/secret.yaml
 **/*-secret.yaml
 # Local env files

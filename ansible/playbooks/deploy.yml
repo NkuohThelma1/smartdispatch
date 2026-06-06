@@ -1,0 +1,23 @@
+---
+- name: Deploy SmartDispatch application stack
+  hosts: local
+  gather_facts: false
+
+  vars:
+    smartdispatch_root: "{{ playbook_dir }}/../.."
+    smartdispatch_release_name: "{{ release_name | default('smartdispatch') }}"
+    smartdispatch_namespace: "{{ namespace | default('smartdispatch') }}"
+    smartdispatch_image_tag: "{{ image_tag | default('latest') }}"
+
+  tasks:
+    - name: Deploy the Helm umbrella chart
+      ansible.builtin.command:
+        cmd: >-
+          helm upgrade --install {{ smartdispatch_release_name }} ./charts/smartdispatch
+          --namespace {{ smartdispatch_namespace }}
+          --create-namespace
+          --set global.imageTag={{ smartdispatch_image_tag }}
+          --wait
+          --timeout 10m
+      args:
+        chdir: "{{ smartdispatch_root }}"

@@ -1,4 +1,3 @@
-cat > manifests/kafka-strimzi.yaml << 'EOF'
 # ── Kafka Cluster ─────────────────────────────────────────────────────────────
 apiVersion: kafka.strimzi.io/v1
 kind: Kafka
@@ -134,4 +133,3 @@ spec:
   replicas: 1
   config:
     retention.ms: 604800000
-EOF

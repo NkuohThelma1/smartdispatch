@@ -1,0 +1,9 @@
+replicaCount: 1
+port: 80
+image:
+  repository: thelma06/smartdispatch-frontend-service
+  tag: "0.1.0"
+  pullPolicy: IfNotPresent
+ingress:
+  enabled: true
+  host: smartdispatch.local

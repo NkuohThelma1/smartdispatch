@@ -5,12 +5,13 @@ pipeline {
     agent any
 
     environment {
-        DOCKER_REGISTRY  = "docker.io"
-        DOCKER_USER      = credentials('dockerhub-username')
-        DOCKER_PASS      = credentials('dockerhub-password')
-        IMAGE_TAG        = "${env.BUILD_NUMBER}"
-        KUBECONFIG       = credentials('kubeconfig-smartdispatch')
-        SERVICES         = "user-service order-service delivery-service notification-service analytics-service"
+        DOCKER_REGISTRY   = "docker.io"
+        DOCKER_USER       = credentials('dockerhub-username')
+        DOCKER_PASS       = credentials('dockerhub-password')
+        IMAGE_TAG         = "${env.BUILD_NUMBER}"
+        KUBECONFIG        = credentials('kubeconfig-smartdispatch')
+        BACKEND_SERVICES  = "user-service order-service delivery-service notification-service analytics-service"
+        ALL_SERVICES      = "user-service order-service delivery-service notification-service analytics-service frontend-service"
     }
 
     stages {
@@ -19,7 +20,7 @@ pipeline {
         stage('Lint Python') {
             steps {
                 script {
-                    def services = env.SERVICES.tokenize()
+                    def services = env.BACKEND_SERVICES.tokenize()
                     for (svc in services) {
                         sh """
                             pip install ruff --quiet
@@ -30,29 +31,51 @@ pipeline {
             }
         }
 
-        // ── Stage 2: Build Docker Images ──────────────────────────────────────
+        // ── Stage 2: Unit Tests ───────────────────────────────────────────────
+        stage('Unit Tests') {
+            steps {
+                sh "python -m unittest discover -s tests -p 'test_*.py'"
+            }
+        }
+
+        // ── Stage 3: Install Ansible ─────────────────────────────────────────
+        stage('Install Ansible') {
+            steps {
+                sh "pip install ansible-core --quiet"
+            }
+        }
+
+        // ── Stage 4: Build Docker Images ──────────────────────────────────────
         stage('Build Images') {
             steps {
                 script {
-                    def services = env.SERVICES.tokenize()
+                    def imageTargets = [
+                        "user-service"        : "services/user-service",
+                        "order-service"       : "services/order-service",
+                        "delivery-service"    : "services/delivery-service",
+                        "notification-service": "services/notification-service",
+                        "analytics-service"   : "services/analytics-service",
+                        "frontend-service"    : "frontend"
+                    ]
+                    def services = env.ALL_SERVICES.tokenize()
                     for (svc in services) {
                         sh """
                             docker build \
                                 -t ${DOCKER_REGISTRY}/${DOCKER_USER}/smartdispatch-${svc}:${IMAGE_TAG} \
                                 -t ${DOCKER_REGISTRY}/${DOCKER_USER}/smartdispatch-${svc}:latest \
-                                -f services/${svc}/Dockerfile \
-                                services/${svc}/
+                                -f ${imageTargets[svc]}/Dockerfile \
+                                ${imageTargets[svc]}/
                         """
                     }
                 }
             }
         }
 
-        // ── Stage 3: Trivy Image Scan (fail on HIGH/CRITICAL) ─────────────────
+        // ── Stage 5: Trivy Image Scan (fail on HIGH/CRITICAL) ─────────────────
         stage('Scan Images (Trivy)') {
             steps {
                 script {
-                    def services = env.SERVICES.tokenize()
+                    def services = env.ALL_SERVICES.tokenize()
                     for (svc in services) {
                         sh """
                             trivy image \
@@ -66,12 +89,12 @@ pipeline {
             }
         }
 
-        // ── Stage 4: Push to Registry ─────────────────────────────────────────
+        // ── Stage 6: Push to Registry ─────────────────────────────────────────
         stage('Push Images') {
             steps {
                 script {
                     sh "echo ${DOCKER_PASS} | docker login ${DOCKER_REGISTRY} -u ${DOCKER_USER} --password-stdin"
-                    def services = env.SERVICES.tokenize()
+                    def services = env.ALL_SERVICES.tokenize()
                     for (svc in services) {
                         sh """
                             docker push ${DOCKER_REGISTRY}/${DOCKER_USER}/smartdispatch-${svc}:${IMAGE_TAG}
@@ -82,21 +105,28 @@ pipeline {
             }
         }
 
-        // ── Stage 5: Helm Deploy to smartdispatch namespace ───────────────────
-        stage('Helm Deploy (staging)') {
+        // ── Stage 7: Ansible Bootstrap (staging) ─────────────────────────────
+        stage('Ansible Bootstrap (staging)') {
             steps {
                 sh """
-                    helm upgrade --install smartdispatch ./charts/smartdispatch \
-                        --namespace smartdispatch \
-                        --create-namespace \
-                        --set global.imageTag=${IMAGE_TAG} \
-                        --wait \
-                        --timeout 5m
+                    ansible-playbook -i ansible/inventory/hosts.ini ansible/playbooks/bootstrap.yml
                 """
             }
         }
 
-        // ── Stage 6: Smoke Test /healthz on all services ──────────────────────
+        // ── Stage 8: Ansible Deploy (staging) ────────────────────────────────
+        stage('Ansible Deploy (staging)') {
+            steps {
+                sh """
+                    ansible-playbook -i ansible/inventory/hosts.ini ansible/playbooks/deploy.yml \
+                        --extra-vars image_tag=${IMAGE_TAG} \
+                        --extra-vars namespace=smartdispatch \
+                        --extra-vars release_name=smartdispatch
+                """
+            }
+        }
+
+        // ── Stage 9: Smoke Test /healthz on all services ─────────────────────
         stage('Smoke Test') {
             steps {
                 script {
@@ -105,7 +135,8 @@ pipeline {
                         "order-service"       : 8002,
                         "delivery-service"    : 8003,
                         "notification-service": 8004,
-                        "analytics-service"   : 8005
+                        "analytics-service"   : 8005,
+                        "frontend-service"    : 80
                     ]
                     portMap.each { svc, port ->
                         sh """
@@ -122,7 +153,7 @@ pipeline {
             }
         }
 
-        // ── Stage 7: Manual Approval Gate ─────────────────────────────────────
+        // ── Stage 10: Manual Approval Gate ────────────────────────────────────
         stage('Approval: Promote to Prod?') {
             steps {
                 input(
@@ -133,16 +164,14 @@ pipeline {
             }
         }
 
-        // ── Stage 8: Deploy to production namespace ───────────────────────────
-        stage('Helm Deploy (prod)') {
+        // ── Stage 11: Ansible Deploy (prod) ──────────────────────────────────
+        stage('Ansible Deploy (prod)') {
             steps {
                 sh """
-                    helm upgrade --install smartdispatch-prod ./charts/smartdispatch \
-                        --namespace smartdispatch-prod \
-                        --create-namespace \
-                        --set global.imageTag=${IMAGE_TAG} \
-                        --wait \
-                        --timeout 5m
+                    ansible-playbook -i ansible/inventory/hosts.ini ansible/playbooks/deploy.yml \
+                        --extra-vars image_tag=${IMAGE_TAG} \
+                        --extra-vars namespace=smartdispatch-prod \
+                        --extra-vars release_name=smartdispatch-prod
                 """
             }
         }

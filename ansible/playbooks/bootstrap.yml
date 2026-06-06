@@ -1,0 +1,33 @@
+---
+- name: Bootstrap SmartDispatch Kubernetes dependencies
+  hosts: local
+  gather_facts: false
+
+  vars:
+    smartdispatch_root: "{{ playbook_dir }}/../.."
+    bootstrap_manifests:
+      - manifests/namespace.yaml
+      - manifests/kafka-strimzi.yaml
+      - manifests/observability.yaml
+      - manifests/netpol-user-service.yaml
+      - manifests/netpol-order-service.yaml
+      - manifests/netpol-delivery-service.yaml
+      - manifests/netpol-notification-service.yaml
+      - manifests/netpol-analytics-service.yaml
+
+  tasks:
+    - name: Apply namespace, Kafka, observability, and network policies
+      ansible.builtin.command:
+        cmd: kubectl apply -f {{ item }}
+      args:
+        chdir: "{{ smartdispatch_root }}"
+      loop: "{{ bootstrap_manifests }}"
+
+    - name: Create or update Grafana dashboard configmap
+      ansible.builtin.shell: >-
+        kubectl create configmap smartdispatch-dashboard
+        --from-file=smartdispatch.json=dashboards/smartdispatch.json
+        -n observability
+        --dry-run=client -o yaml | kubectl apply -f -
+      args:
+        chdir: "{{ smartdispatch_root }}"
