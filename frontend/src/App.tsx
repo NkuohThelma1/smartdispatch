@@ -1,19 +1,19 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
-import './styles.css';
 import {
-  addContact,
-  cancelOrder,
-  createOrder,
-  getApiBase,
-  getDeliveryStats,
-  getEventStats,
-  getOrder,
-  getProfile,
-  getZoneStats,
-  listContacts,
-  login,
-  signup,
+    addContact,
+    cancelOrder,
+    createOrder,
+    getApiBase,
+    getDeliveryStats,
+    getEventStats,
+    getOrder,
+    getProfile,
+    getZoneStats,
+    listContacts,
+    login,
+    signup,
 } from './api';
+import './styles.css';
 import type { Contact, DeliveryStat, EventStat, OrderRecord, Profile, Role, ZoneStat } from './types';
 
 const TOKEN_KEY = 'smartdispatch.token';
@@ -60,7 +60,7 @@ export default function App() {
 
   useEffect(() => {
     if (!token) return;
-    refreshProfile().catch((err: Error) => setError(err.message));
+    refreshProfile(token).catch((err: Error) => setError(err.message));
   }, [token]);
 
   const metrics = useMemo(() => [
