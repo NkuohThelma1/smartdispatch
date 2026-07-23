@@ -1,5 +1,5 @@
 // SmartDispatch CI/CD Pipeline — Jenkinsfile (Declarative)
-// Stages: Lint → Build → Scan → Push → Deploy → Smoke Test → Manual Gate → Prod Deploy
+// Stages: Lint → Test → Coverage → Frontend Lint/Build → Build → Scan → Push → Deploy → Smoke → Gate → Prod
 
 pipeline {
     agent any
@@ -38,14 +38,50 @@ pipeline {
             }
         }
 
-        // ── Stage 3: Install Ansible ─────────────────────────────────────────
+        // ── Stage 3: Coverage Enforcement ─────────────────────────────────────
+        stage('Coverage Enforcement') {
+            steps {
+                script {
+                    sh 'coverage report --fail-under=80'
+                    docker.image('node:20-slim').inside('-u node -e HOME=/tmp') {
+                        dir('frontend') {
+                            // Ensure workspace is writable by the non-root node user
+                            sh 'chmod -R 777 .'
+                            sh 'npm install'
+                            sh 'npm run test -- --coverage'
+                        }
+                    }
+                }
+            }
+        }
+
+        // ── Stage 4: Frontend Lint & Build ────────────────────────────────────
+        stage('Frontend Lint & Build') {
+            agent {
+                docker {
+                    image 'node:20-slim'
+                    args '-u node -e HOME=/tmp'
+                }
+            }
+            steps {
+                dir('frontend') {
+                    // Ensure workspace is writable by the non-root node user
+                    sh 'chmod -R 777 .'
+                    sh 'npm install'
+                    sh 'npm run lint'
+                    sh 'npm run build'
+                }
+            }
+        }
+
+        // ── Stage 5: Install Ansible ─────────────────────────────────────────
         stage('Install Ansible') {
             steps {
                 sh "pip install ansible-core --quiet"
             }
         }
 
-        // ── Stage 4: Build Docker Images ──────────────────────────────────────
+        // ── Stage 6: Build Docker Images ──────────────────────────────────────
         stage('Build Images') {
             steps {
                 script {
@@ -71,7 +107,7 @@ pipeline {
             }
         }
 
-        // ── Stage 5: Trivy Image Scan (fail on HIGH/CRITICAL) ─────────────────
+        // ── Stage 7: Trivy Image Scan (fail on HIGH/CRITICAL) ─────────────────
         stage('Scan Images (Trivy)') {
             steps {
                 script {
@@ -89,7 +125,7 @@ pipeline {
             }
         }
 
-        // ── Stage 6: Push to Registry ─────────────────────────────────────────
+        // ── Stage 8: Push to Registry ─────────────────────────────────────────
         stage('Push Images') {
             steps {
                 script {
@@ -105,7 +141,7 @@ pipeline {
             }
         }
 
-        // ── Stage 7: Ansible Bootstrap (staging) ─────────────────────────────
+        // ── Stage 9: Ansible Bootstrap (staging) ─────────────────────────────
         stage('Ansible Bootstrap (staging)') {
             steps {
                 sh """
@@ -114,7 +150,7 @@ pipeline {
             }
         }
 
-        // ── Stage 8: Ansible Deploy (staging) ────────────────────────────────
+        // ── Stage 10: Ansible Deploy (staging) ────────────────────────────────
         stage('Ansible Deploy (staging)') {
             steps {
                 sh """
@@ -126,7 +162,7 @@ pipeline {
             }
         }
 
-        // ── Stage 9: Smoke Test /healthz on all services ─────────────────────
+        // ── Stage 11: Smoke Test /healthz on all services ─────────────────────
         stage('Smoke Test') {
             steps {
                 script {
@@ -153,7 +189,7 @@ pipeline {
             }
         }
 
-        // ── Stage 10: Manual Approval Gate ────────────────────────────────────
+        // ── Stage 12: Manual Approval Gate ────────────────────────────────────
         stage('Approval: Promote to Prod?') {
             steps {
                 input(
@@ -164,7 +200,7 @@ pipeline {
             }
         }
 
-        // ── Stage 11: Ansible Deploy (prod) ──────────────────────────────────
+        // ── Stage 13: Ansible Deploy (prod) ──────────────────────────────────
         stage('Ansible Deploy (prod)') {
             steps {
                 sh """

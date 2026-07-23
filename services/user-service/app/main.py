@@ -21,7 +21,7 @@ from fastapi import Depends, FastAPI, HTTPException, Header
 from pydantic import BaseModel, Field
 from prometheus_client import Counter, make_asgi_app
 
-from .db import init, insert_user, find_by_phone, add_contact, list_contacts
+from .db import init, insert_user, find_by_phone, find_by_id, add_contact, list_contacts
 from .events import publish, health, producer, stop_producer
 
 logging.basicConfig(level=logging.INFO)
@@ -145,14 +145,3 @@ async def post_contact(body: ContactIn, claims: dict = Depends(auth)):
 async def get_contacts(claims: dict = Depends(auth)):
     rows = list_contacts(claims["sub"])
     return [{"name": r["name"], "phone": r["phone"]} for r in rows]
-
-
-def find_by_id(uid: str):
-    import sqlite3
-    from .db import DB_PATH
-    c = sqlite3.connect(DB_PATH)
-    c.row_factory = sqlite3.Row
-    try:
-        return c.execute("SELECT * FROM users WHERE id = ?", (uid,)).fetchone()
-    finally:
-        c.close()

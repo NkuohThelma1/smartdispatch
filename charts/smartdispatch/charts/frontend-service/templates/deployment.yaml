@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ .Chart.Name }}
-  namespace: smartdispatch
+  namespace: {{ .Release.Namespace }}
   labels:
     app: {{ .Chart.Name }}
 spec:
@@ -27,6 +27,11 @@ spec:
           imagePullPolicy: {{ .Values.image.pullPolicy | default "IfNotPresent" }}
           ports:
             - containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: {{ .Chart.Name }}-config
+            - secretRef:
+                name: {{ .Chart.Name }}-secret
           livenessProbe:
             httpGet:
               path: /healthz

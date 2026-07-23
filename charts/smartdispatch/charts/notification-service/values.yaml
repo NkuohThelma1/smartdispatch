@@ -1,9 +1,9 @@
 replicaCount: 1
 port: 8004
 image:
-  repository: thelma06/smartdispatch-notification-service
-  tag: "0.1.0"
-  pullPolicy: IfNotPresent
+  repository: smartdispatch-notification-service
+  tag: "latest"
+  pullPolicy: IfNotPresent  # Local image present in k3d node; use IfNotPresent for demos. Prod: push to a real registry.
 hpa:
   minReplicas: 1
   maxReplicas: 3

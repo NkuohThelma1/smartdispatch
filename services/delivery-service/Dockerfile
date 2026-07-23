@@ -28,6 +28,8 @@ COPY requirements.txt .
 
 RUN chown -R appuser /app
 
+RUN mkdir -p /data && chown -R appuser /data
+
 USER appuser
 
 EXPOSE 8003

@@ -65,7 +65,7 @@ async def shutdown() -> None:
 
 @app.get("/healthz")
 async def healthz():
-    return {"status": "ok"}
+    return {"status": "ok", "version": "v2"}
 
 
 @app.get("/readyz")

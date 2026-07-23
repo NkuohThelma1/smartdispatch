@@ -1,24 +1,16 @@
-"""Apache Kafka producer + consumer helpers (aiokafka).
-
-Patterns:
-  - Pub/Sub (Kafka topics + consumer groups)
-  - Outbox-lite (publish + db-write live in same async block in main.py)
-  - Circuit breaker stub (TODO: student completes)
-
-Partition keying:
-  Every saga-critical publish should pass key=<incident_id> (or <user_id>).
-  Same-key events land on the same partition, preserving ordering and ensuring
-  the "no double dispatch" invariant holds even with multi-replica consumers
-  (one partition is owned by one consumer at a time inside a group).
-"""
-from __future__ import annotations
+import asyncio
 import json
+import logging
 import os
+import time
+from enum import Enum, auto
 from typing import Awaitable, Callable, Iterable
 
 from aiokafka import AIOKafkaConsumer, AIOKafkaProducer
 
 KAFKA_BOOTSTRAP = os.getenv("KAFKA_BOOTSTRAP", "localhost:9092")
+
+log = logging.getLogger(__name__)
 
 _producer: AIOKafkaProducer | None = None
 
@@ -54,23 +46,60 @@ async def health() -> bool:
         return False
 
 
-# ---- Circuit breaker stub (student to complete) ----
+class _State(Enum):
+    CLOSED = auto()
+    OPEN = auto()
+    HALF_OPEN = auto()
+
+
 class CircuitBreaker:
-    def __init__(self, fail_threshold: int = 5, reset_after_s: float = 10.0):
+    def __init__(self, fail_threshold: int = 5, reset_after_s: float = 30.0):
         self.fail_threshold = fail_threshold
         self.reset_after_s = reset_after_s
-        self.fails = 0
-        self.opened_at: float | None = None
+        self._state = _State.CLOSED
+        self._fails = 0
+        self._opened_at: float | None = None
+        self._lock = asyncio.Lock()
+        self._half_open_in_progress = False
 
-    def allow(self) -> bool:
-        # TODO (student): implement open/half-open/closed state machine
-        return True
+    async def allow(self) -> bool:
+        async with self._lock:
+            if self._state is _State.CLOSED:
+                return True
+            if self._state is _State.OPEN:
+                if (
+                    self._opened_at is not None
+                    and time.monotonic() - self._opened_at >= self.reset_after_s
+                ):
+                    self._state = _State.HALF_OPEN
+                    self._half_open_in_progress = True
+                    return True
+                return False
+            if self._state is _State.HALF_OPEN:
+                if not self._half_open_in_progress:
+                    self._half_open_in_progress = True
+                    return True
+                return False
+            return False
 
-    def record_success(self) -> None:
-        self.fails = 0
+    async def record_success(self) -> None:
+        async with self._lock:
+            self._fails = 0
+            self._state = _State.CLOSED
+            self._opened_at = None
+            self._half_open_in_progress = False
 
-    def record_failure(self) -> None:
-        self.fails += 1
+    async def record_failure(self) -> None:
+        async with self._lock:
+            self._fails += 1
+            if self._state is _State.HALF_OPEN:
+                self._state = _State.OPEN
+                self._opened_at = time.monotonic()
+                self._half_open_in_progress = False
+                return
+            if self._state is _State.CLOSED and self._fails >= self.fail_threshold:
+                self._state = _State.OPEN
+                self._opened_at = time.monotonic()
 
 
 _breaker = CircuitBreaker()
@@ -78,14 +107,14 @@ _breaker = CircuitBreaker()
 
 async def publish(topic: str, event: dict, key: str | None = None) -> None:
     """Outbox-lite: caller should db-write THEN await publish() in same async block."""
-    if not _breaker.allow():
+    if not await _breaker.allow():
         raise RuntimeError(f"circuit-open: {topic}")
     try:
         p = await producer()
         await p.send_and_wait(topic, value=event, key=key)
-        _breaker.record_success()
+        await _breaker.record_success()
     except Exception:
-        _breaker.record_failure()
+        await _breaker.record_failure()
         raise
 
 
@@ -107,11 +136,23 @@ async def consume(topics: Iterable[str], group: str, handler: Handler) -> None:
         async for msg in consumer:
             payload = msg.value
             payload["_stream"] = msg.topic  # preserved name for back-compat with handlers
+            if not await _breaker.allow():
+                continue
             try:
                 await handler(payload)
+                await _breaker.record_success()
                 await consumer.commit()
-            except Exception:
+            except Exception as exc:
+                await _breaker.record_failure()
+                log.error(
+                    "consumer.handler.failed topic=%s partition=%s offset=%s key=%r error=%s",
+                    msg.topic,
+                    msg.partition,
+                    msg.offset,
+                    msg.key,
+                    exc,
+                    exc_info=True,
+                )
                 # leave un-committed → re-delivered on next read (at-least-once)
-                pass
     finally:
         await consumer.stop()

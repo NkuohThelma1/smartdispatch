@@ -22,13 +22,11 @@ class MatchingTests(unittest.TestCase):
 
     def test_haversine_is_zero_for_identical_points(self):
         matching = load_matching_module()
-
         self.assertAlmostEqual(matching.haversine_m(4.0, 11.0, 4.0, 11.0), 0.0, places=6)
 
     def test_nearest_matcher_picks_closest_agent(self):
         matching = load_matching_module()
         matcher = matching.NearestMatcher()
-
         result = matcher.pick(
             4.0,
             11.0,
@@ -37,16 +35,32 @@ class MatchingTests(unittest.TestCase):
                 {"id": "near", "lat": 4.01, "lon": 11.01, "credibility": 1.0},
             ],
         )
-
         self.assertEqual(result["id"], "near")
 
     def test_factory_uses_credibility_mode(self):
         os.environ["MATCHER"] = "credibility"
         matching = load_matching_module()
-
         matcher = matching.matcher()
-
         self.assertEqual(matcher.__class__.__name__, "CredibilityWeightedMatcher")
+
+    def test_credibility_matcher_picks_higher_credibility(self):
+        matching = load_matching_module()
+        matcher = matching.CredibilityWeightedMatcher()
+        result = matcher.pick(
+            4.0,
+            11.0,
+            [
+                {"id": "low", "lat": 4.0, "lon": 11.0, "credibility": 0.5},
+                {"id": "high", "lat": 4.0, "lon": 11.0, "credibility": 10.0},
+            ],
+        )
+        self.assertEqual(result["id"], "high")
+
+    def test_credibility_matcher_empty_agents(self):
+        matching = load_matching_module()
+        matcher = matching.CredibilityWeightedMatcher()
+        result = matcher.pick(4.0, 11.0, [])
+        self.assertIsNone(result)
 
 
 if __name__ == "__main__":

@@ -38,6 +38,9 @@ COPY requirements.txt .
 # Give appuser ownership of the working directory
 RUN chown -R appuser /app
 
+# Ensure /data exists and is writable by appuser (SQLite DBs live here)
+RUN mkdir -p /data && chown -R appuser /data
+
 # Switch to non-root user — all commands after this run as appuser
 USER appuser
 

@@ -15,9 +15,9 @@ user-service:
   replicaCount: 1
   port: 8001
   image:
-    repository: thelma06/smartdispatch-user-service
-    tag: "0.1.0"
-    pullPolicy: IfNotPresent
+    repository: smartdispatch-user-service
+    tag: "latest"
+    pullPolicy: IfNotPresent  # Local image present in k3d node; use IfNotPresent for demos. Prod: push to a real registry.
   hpa:
     minReplicas: 1
     maxReplicas: 3
@@ -27,9 +27,9 @@ order-service:
   replicaCount: 1
   port: 8002
   image:
-    repository: thelma06/smartdispatch-order-service
-    tag: "0.1.0"
-    pullPolicy: IfNotPresent
+    repository: smartdispatch-order-service
+    tag: "latest"
+    pullPolicy: IfNotPresent  # Local image present in k3d node; use IfNotPresent for demos. Prod: push to a real registry.
   hpa:
     minReplicas: 1
     maxReplicas: 3
@@ -40,9 +40,9 @@ delivery-service:
   port: 8003
   matcher: "nearest"
   image:
-    repository: thelma06/smartdispatch-delivery-service
-    tag: "0.1.0"
-    pullPolicy: IfNotPresent
+    repository: smartdispatch-delivery-service
+    tag: "latest"
+    pullPolicy: IfNotPresent  # Local image present in k3d node; use IfNotPresent for demos. Prod: push to a real registry.
   hpa:
     minReplicas: 1
     maxReplicas: 3
@@ -52,9 +52,9 @@ notification-service:
   replicaCount: 1
   port: 8004
   image:
-    repository: thelma06/smartdispatch-notification-service
-    tag: "0.1.0"
-    pullPolicy: IfNotPresent
+    repository: smartdispatch-notification-service
+    tag: "latest"
+    pullPolicy: IfNotPresent  # Local image present in k3d node; use IfNotPresent for demos. Prod: push to a real registry.
   hpa:
     minReplicas: 1
     maxReplicas: 3
@@ -64,9 +64,9 @@ analytics-service:
   replicaCount: 1
   port: 8005
   image:
-    repository: thelma06/smartdispatch-analytics-service
-    tag: "0.1.0"
-    pullPolicy: IfNotPresent
+    repository: smartdispatch-analytics-service
+    tag: "latest"
+    pullPolicy: IfNotPresent  # Local image present in k3d node; use IfNotPresent for demos. Prod: push to a real registry.
   hpa:
     minReplicas: 1
     maxReplicas: 3
@@ -75,7 +75,12 @@ analytics-service:
 frontend-service:
   replicaCount: 1
   port: 80
+  apiBaseUrl: "/api"
   image:
-    repository: thelma06/smartdispatch-frontend-service
-    tag: "0.1.0"
-    pullPolicy: IfNotPresent
+    repository: smartdispatch-frontend
+    tag: "latest"
+    pullPolicy: IfNotPresent  # Local image present in k3d node; use IfNotPresent for demos. Prod: push to a real registry.
+  hpa:
+    minReplicas: 1
+    maxReplicas: 3
+    cpuTarget: 70

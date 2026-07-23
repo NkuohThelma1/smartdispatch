@@ -6,8 +6,7 @@ metadata:
   namespace: kafka
 spec:
   kafka:
-    version: 3.9.0
-    replicas: 1
+    version: 4.2.1
     listeners:
       - name: plain
         port: 9092
@@ -18,19 +17,26 @@ spec:
       transaction.state.log.replication.factor: 1
       transaction.state.log.min.isr: 1
       auto.create.topics.enable: "false"
-    storage:
-      type: persistent-claim
-      size: 1Gi
-      deleteClaim: false
-  zookeeper:
-    replicas: 1
-    storage:
-      type: persistent-claim
-      size: 1Gi
-      deleteClaim: false
   entityOperator:
     topicOperator: {}
     userOperator: {}
+---
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaNodePool
+metadata:
+  name: smartdispatch-kafka-pool
+  namespace: kafka
+  labels:
+    strimzi.io/cluster: smartdispatch-kafka
+spec:
+  replicas: 1
+  roles:
+    - controller
+    - broker
+  storage:
+    type: persistent-claim
+    size: 1Gi
+    deleteClaim: false
 ---
 apiVersion: policy/v1
 kind: PodDisruptionBudget
