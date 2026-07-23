@@ -1,0 +1,86 @@
+# ── Global values shared by all sub-charts ────────────────────────────────────
+global:
+  imageTag: "0.1.0"
+  jwtSecret: "change-me-in-production"
+  storageClass: "standard"
+  kafkaBootstrap: "smartdispatch-kafka-kafka-bootstrap.kafka.svc.cluster.local:9092"
+
+# ── Ingress ───────────────────────────────────────────────────────────────────
+ingress:
+  enabled: true
+  host: smartdispatch.local
+
+# ── Per-service overrides ─────────────────────────────────────────────────────
+user-service:
+  replicaCount: 1
+  port: 8001
+  image:
+    repository: smartdispatch-user-service
+    tag: "latest"
+    pullPolicy: IfNotPresent  # Local image present in k3d node; use IfNotPresent for demos. Prod: push to a real registry.
+  hpa:
+    minReplicas: 1
+    maxReplicas: 3
+    cpuTarget: 70
+
+order-service:
+  replicaCount: 1
+  port: 8002
+  image:
+    repository: smartdispatch-order-service
+    tag: "latest"
+    pullPolicy: IfNotPresent  # Local image present in k3d node; use IfNotPresent for demos. Prod: push to a real registry.
+  hpa:
+    minReplicas: 1
+    maxReplicas: 3
+    cpuTarget: 70
+
+delivery-service:
+  replicaCount: 1
+  port: 8003
+  matcher: "nearest"
+  image:
+    repository: smartdispatch-delivery-service
+    tag: "latest"
+    pullPolicy: IfNotPresent  # Local image present in k3d node; use IfNotPresent for demos. Prod: push to a real registry.
+  hpa:
+    minReplicas: 1
+    maxReplicas: 3
+    cpuTarget: 70
+
+notification-service:
+  replicaCount: 1
+  port: 8004
+  image:
+    repository: smartdispatch-notification-service
+    tag: "latest"
+    pullPolicy: IfNotPresent  # Local image present in k3d node; use IfNotPresent for demos. Prod: push to a real registry.
+  hpa:
+    minReplicas: 1
+    maxReplicas: 3
+    cpuTarget: 70
+
+analytics-service:
+  replicaCount: 1
+  port: 8005
+  image:
+    repository: smartdispatch-analytics-service
+    tag: "latest"
+    pullPolicy: IfNotPresent  # Local image present in k3d node; use IfNotPresent for demos. Prod: push to a real registry.
+  hpa:
+    minReplicas: 1
+    maxReplicas: 3
+    cpuTarget: 70
+
+frontend-service:
+  replicaCount: 1
+  port: 80
+  apiBaseUrl: "/api"
+  image:
+    repository: smartdispatch-frontend
+    tag: "latest"
+    pullPolicy: IfNotPresent  # Local image present in k3d node; use IfNotPresent for demos. Prod: push to a real registry.
+  hpa:
+    minReplicas: 1
+    maxReplicas: 3
+    cpuTarget: 70

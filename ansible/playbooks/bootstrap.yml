@@ -1,0 +1,62 @@
+---
+- name: Bootstrap SmartDispatch Kubernetes dependencies
+  hosts: local
+  gather_facts: false
+
+  vars:
+    smartdispatch_root: "{{ playbook_dir }}/../.."
+    bootstrap_manifests:
+      - manifests/namespace.yaml
+      - manifests/kafka-strimzi.yaml
+      - manifests/observability.yaml
+      - manifests/netpol-user-service.yaml
+      - manifests/netpol-user-service-egress.yaml
+      - manifests/netpol-order-service.yaml
+      - manifests/netpol-order-service-egress.yaml
+      - manifests/netpol-delivery-service.yaml
+      - manifests/netpol-delivery-service-egress.yaml
+      - manifests/netpol-notification-service.yaml
+      - manifests/netpol-notification-service-egress.yaml
+      - manifests/netpol-analytics-service.yaml
+      - manifests/netpol-analytics-service-egress.yaml
+
+  tasks:
+    - name: Create kafka namespace
+      ansible.builtin.command:
+        cmd: kubectl create namespace kafka
+      register: kafka_ns_result
+      failed_when: kafka_ns_result.rc != 0 and 'AlreadyExists' not in kafka_ns_result.stderr
+      changed_when: kafka_ns_result.rc == 0
+
+    - name: Install Strimzi Kafka operator
+      ansible.builtin.command:
+        cmd: kubectl create -f 'https://strimzi.io/install/latest?namespace=kafka' -n kafka
+      register: strimzi_install
+      failed_when: strimzi_install.rc != 0 and 'AlreadyExists' not in strimzi_install.stderr
+      changed_when: strimzi_install.rc == 0
+
+    - name: Wait for Strimzi CRDs to be established
+      ansible.builtin.command:
+        cmd: kubectl wait --for=condition=Established crd/kafkas.kafka.strimzi.io --timeout=120s
+      changed_when: false
+
+    - name: Wait for Strimzi operator deployment to be ready
+      ansible.builtin.command:
+        cmd: kubectl wait --for=condition=Available deployment/strimzi-cluster-operator -n kafka --timeout=180s
+      changed_when: false
+
+    - name: Apply namespace, Kafka, observability, and network policies
+      ansible.builtin.command:
+        cmd: "kubectl apply -f {{ item }} --validate=false"
+      args:
+        chdir: "{{ smartdispatch_root }}"
+      loop: "{{ bootstrap_manifests }}"
+
+    - name: Create or update Grafana dashboard configmap
+      ansible.builtin.shell: >-
+        kubectl create configmap smartdispatch-dashboard
+        --from-file=smartdispatch.json=dashboards/smartdispatch.json
+        -n observability
+        --dry-run=client -o yaml | kubectl apply -f - --validate=false
+      args:
+        chdir: "{{ smartdispatch_root }}"

@@ -1,0 +1,227 @@
+// SmartDispatch CI/CD Pipeline — Jenkinsfile (Declarative)
+// Stages: Lint → Test → Coverage → Frontend Lint/Build → Build → Scan → Push → Deploy → Smoke → Gate → Prod
+
+pipeline {
+    agent any
+
+    environment {
+        DOCKER_REGISTRY   = "docker.io"
+        DOCKER_USER       = credentials('dockerhub-username')
+        DOCKER_PASS       = credentials('dockerhub-password')
+        IMAGE_TAG         = "${env.BUILD_NUMBER}"
+        KUBECONFIG        = credentials('kubeconfig-smartdispatch')
+        BACKEND_SERVICES  = "user-service order-service delivery-service notification-service analytics-service"
+        ALL_SERVICES      = "user-service order-service delivery-service notification-service analytics-service frontend-service"
+    }
+
+    stages {
+
+        // ── Stage 1: Lint Python ──────────────────────────────────────────────
+        stage('Lint Python') {
+            steps {
+                script {
+                    def services = env.BACKEND_SERVICES.tokenize()
+                    for (svc in services) {
+                        sh """
+                            pip install ruff --quiet
+                            ruff check services/${svc}/app/ --select E,W,F
+                        """
+                    }
+                }
+            }
+        }
+
+        // ── Stage 2: Unit Tests ───────────────────────────────────────────────
+        stage('Unit Tests') {
+            steps {
+                sh "python -m unittest discover -s tests -p 'test_*.py'"
+            }
+        }
+
+        // ── Stage 3: Coverage Enforcement ─────────────────────────────────────
+        stage('Coverage Enforcement') {
+            steps {
+                script {
+                    sh 'coverage report --fail-under=80'
+                    docker.image('node:20-slim').inside('-u node -e HOME=/tmp') {
+                        dir('frontend') {
+                            // Ensure workspace is writable by the non-root node user
+                            sh 'chmod -R 777 .'
+                            sh 'npm install'
+                            sh 'npm run test -- --coverage'
+                        }
+                    }
+                }
+            }
+        }
+
+        // ── Stage 4: Frontend Lint & Build ────────────────────────────────────
+        stage('Frontend Lint & Build') {
+            agent {
+                docker {
+                    image 'node:20-slim'
+                    args '-u node -e HOME=/tmp'
+                }
+            }
+            steps {
+                dir('frontend') {
+                    // Ensure workspace is writable by the non-root node user
+                    sh 'chmod -R 777 .'
+                    sh 'npm install'
+                    sh 'npm run lint'
+                    sh 'npm run build'
+                }
+            }
+        }
+
+        // ── Stage 5: Install Ansible ─────────────────────────────────────────
+        stage('Install Ansible') {
+            steps {
+                sh "pip install ansible-core --quiet"
+            }
+        }
+
+        // ── Stage 6: Build Docker Images ──────────────────────────────────────
+        stage('Build Images') {
+            steps {
+                script {
+                    def imageTargets = [
+                        "user-service"        : "services/user-service",
+                        "order-service"       : "services/order-service",
+                        "delivery-service"    : "services/delivery-service",
+                        "notification-service": "services/notification-service",
+                        "analytics-service"   : "services/analytics-service",
+                        "frontend-service"    : "frontend"
+                    ]
+                    def services = env.ALL_SERVICES.tokenize()
+                    for (svc in services) {
+                        sh """
+                            docker build \
+                                -t ${DOCKER_REGISTRY}/${DOCKER_USER}/smartdispatch-${svc}:${IMAGE_TAG} \
+                                -t ${DOCKER_REGISTRY}/${DOCKER_USER}/smartdispatch-${svc}:latest \
+                                -f ${imageTargets[svc]}/Dockerfile \
+                                ${imageTargets[svc]}/
+                        """
+                    }
+                }
+            }
+        }
+
+        // ── Stage 7: Trivy Image Scan (fail on HIGH/CRITICAL) ─────────────────
+        stage('Scan Images (Trivy)') {
+            steps {
+                script {
+                    def services = env.ALL_SERVICES.tokenize()
+                    for (svc in services) {
+                        sh """
+                            trivy image \
+                                --severity HIGH,CRITICAL \
+                                --exit-code 1 \
+                                --no-progress \
+                                ${DOCKER_REGISTRY}/${DOCKER_USER}/smartdispatch-${svc}:${IMAGE_TAG}
+                        """
+                    }
+                }
+            }
+        }
+
+        // ── Stage 8: Push to Registry ─────────────────────────────────────────
+        stage('Push Images') {
+            steps {
+                script {
+                    sh "echo ${DOCKER_PASS} | docker login ${DOCKER_REGISTRY} -u ${DOCKER_USER} --password-stdin"
+                    def services = env.ALL_SERVICES.tokenize()
+                    for (svc in services) {
+                        sh """
+                            docker push ${DOCKER_REGISTRY}/${DOCKER_USER}/smartdispatch-${svc}:${IMAGE_TAG}
+                            docker push ${DOCKER_REGISTRY}/${DOCKER_USER}/smartdispatch-${svc}:latest
+                        """
+                    }
+                }
+            }
+        }
+
+        // ── Stage 9: Ansible Bootstrap (staging) ─────────────────────────────
+        stage('Ansible Bootstrap (staging)') {
+            steps {
+                sh """
+                    ansible-playbook -i ansible/inventory/hosts.ini ansible/playbooks/bootstrap.yml
+                """
+            }
+        }
+
+        // ── Stage 10: Ansible Deploy (staging) ────────────────────────────────
+        stage('Ansible Deploy (staging)') {
+            steps {
+                sh """
+                    ansible-playbook -i ansible/inventory/hosts.ini ansible/playbooks/deploy.yml \
+                        --extra-vars image_tag=${IMAGE_TAG} \
+                        --extra-vars namespace=smartdispatch \
+                        --extra-vars release_name=smartdispatch
+                """
+            }
+        }
+
+        // ── Stage 11: Smoke Test /healthz on all services ─────────────────────
+        stage('Smoke Test') {
+            steps {
+                script {
+                    def portMap = [
+                        "user-service"        : 8001,
+                        "order-service"       : 8002,
+                        "delivery-service"    : 8003,
+                        "notification-service": 8004,
+                        "analytics-service"   : 8005,
+                        "frontend-service"    : 80
+                    ]
+                    portMap.each { svc, port ->
+                        sh """
+                            kubectl run smoke-${svc.replace('-','')}-${BUILD_NUMBER} \
+                                --image=curlimages/curl:latest \
+                                --restart=Never \
+                                --rm \
+                                --attach \
+                                -n smartdispatch \
+                                -- curl -sf http://${svc}:${port}/healthz
+                        """
+                    }
+                }
+            }
+        }
+
+        // ── Stage 12: Manual Approval Gate ────────────────────────────────────
+        stage('Approval: Promote to Prod?') {
+            steps {
+                input(
+                    message: "Promote build ${IMAGE_TAG} to production namespace?",
+                    ok: "Deploy to Prod",
+                    submitterParameter: "APPROVED_BY"
+                )
+            }
+        }
+
+        // ── Stage 13: Ansible Deploy (prod) ──────────────────────────────────
+        stage('Ansible Deploy (prod)') {
+            steps {
+                sh """
+                    ansible-playbook -i ansible/inventory/hosts.ini ansible/playbooks/deploy.yml \
+                        --extra-vars image_tag=${IMAGE_TAG} \
+                        --extra-vars namespace=smartdispatch-prod \
+                        --extra-vars release_name=smartdispatch-prod
+                """
+            }
+        }
+    }
+
+    post {
+        always {
+            sh "docker logout ${DOCKER_REGISTRY} || true"
+        }
+        success {
+            echo "Pipeline succeeded — build ${IMAGE_TAG} deployed to SmartDispatch."
+        }
+        failure {
+            echo "Pipeline FAILED. Check logs above for details."
+        }
+    }
+}

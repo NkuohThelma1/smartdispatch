@@ -1,0 +1,28 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: netpol-notification-service
+  namespace: smartdispatch
+spec:
+  podSelector:
+    matchLabels:
+      app: notification-service
+  policyTypes:
+    - Ingress
+  ingress:
+    # Allow Prometheus scraper only — notification-service is internal
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: observability
+      ports:
+        - protocol: TCP
+          port: 8004
+    # Allow internal services to call /notifications
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: smartdispatch
+      ports:
+        - protocol: TCP
+          port: 8004

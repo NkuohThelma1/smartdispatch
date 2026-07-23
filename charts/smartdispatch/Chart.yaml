@@ -1,0 +1,8 @@
+apiVersion: v2
+name: smartdispatch
+description: >
+  SmartDispatch — Scalable Multi-Business Delivery and Order Tracking Platform.
+  Umbrella chart containing one sub-chart per microservice.
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
