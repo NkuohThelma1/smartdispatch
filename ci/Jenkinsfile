@@ -85,14 +85,12 @@ pipeline {
         // ── Stage 5: Install Ansible ─────────────────────────────────────────
         stage('Install Ansible') {
             steps {
-                script {
-                    sh 'pip install ansible --break-system-packages'
-                    sh 'python3 -c "import site; print(site.USER_BASE)" > ansible_user_base.txt'
-                    def userBase = readFile('ansible_user_base.txt').trim()
-                    def ansibleBin = "${userBase}/bin"
-                    env.PATH = "${ansibleBin}:${env.PATH}"
-                    sh 'which ansible-playbook && ansible-playbook --version'
-                }
+                sh """
+                    pip install ansible --break-system-packages --quiet
+                    export PATH=/var/jenkins_home/.local/bin:\$PATH
+                    which ansible-playbook
+                    ansible-playbook --version
+                """
             }
         }
 
@@ -161,6 +159,7 @@ pipeline {
         stage('Ansible Bootstrap (staging)') {
             steps {
                 sh """
+                    export PATH=/var/jenkins_home/.local/bin:\$PATH
                     ansible-playbook -i ansible/inventory/hosts.ini ansible/playbooks/bootstrap.yml
                 """
             }
@@ -170,6 +169,7 @@ pipeline {
         stage('Ansible Deploy (staging)') {
             steps {
                 sh """
+                    export PATH=/var/jenkins_home/.local/bin:\$PATH
                     ansible-playbook -i ansible/inventory/hosts.ini ansible/playbooks/deploy.yml \
                         --extra-vars image_tag=${IMAGE_TAG} \
                         --extra-vars namespace=smartdispatch \
@@ -220,6 +220,7 @@ pipeline {
         stage('Ansible Deploy (prod)') {
             steps {
                 sh """
+                    export PATH=/var/jenkins_home/.local/bin:\$PATH
                     ansible-playbook -i ansible/inventory/hosts.ini ansible/playbooks/deploy.yml \
                         --extra-vars image_tag=${IMAGE_TAG} \
                         --extra-vars namespace=smartdispatch-prod \
