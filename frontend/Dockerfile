@@ -1,3 +1,12 @@
+# ── Stage 1: build ──────────────────────────────────────────────
+FROM node:20-slim AS build
+WORKDIR /app
+COPY package*.json ./
+RUN npm install
+COPY . .
+RUN npm run build
+
+# ── Stage 2: nginx (existing content, adjusted) ─────────────────
 FROM nginx:1.27-alpine
 
 RUN mkdir -p /var/cache/nginx/client_temp /var/cache/nginx/proxy_temp \
@@ -7,7 +16,7 @@ RUN mkdir -p /var/cache/nginx/client_temp /var/cache/nginx/proxy_temp \
 
 COPY nginx.conf /etc/nginx/nginx.conf
 COPY conf.d/default.conf /etc/nginx/conf.d/default.conf
-COPY dist /usr/share/nginx/html
+COPY --from=build /app/dist /usr/share/nginx/html
 
 EXPOSE 8080
 
