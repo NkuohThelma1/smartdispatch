@@ -85,14 +85,12 @@ pipeline {
         // ── Stage 5: Install Ansible ─────────────────────────────────────────
         stage('Install Ansible') {
             steps {
-                sh """
-                    pip install ansible --break-system-packages
-                    ANSIBLE_BIN=\$(python3 -c "import site; print(site.USER_BASE + '/bin')")
-                    ln -sf "\$ANSIBLE_BIN/ansible-playbook" /usr/local/bin/ansible-playbook
-                    ln -sf "\$ANSIBLE_BIN/ansible" /usr/local/bin/ansible
-                    which ansible-playbook
-                    ansible-playbook --version
-                """
+                script {
+                    sh 'pip install ansible --break-system-packages'
+                    def ansibleBin = sh(script: "python3 -c 'import site; print(site.USER_BASE + \"/bin\")'", returnStdout: true).trim()
+                    env.PATH = "${ansibleBin}:${env.PATH}"
+                    sh 'which ansible-playbook && ansible-playbook --version'
+                }
             }
         }
 
