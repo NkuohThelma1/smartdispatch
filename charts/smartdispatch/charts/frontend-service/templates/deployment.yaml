@@ -30,8 +30,6 @@ spec:
           envFrom:
             - configMapRef:
                 name: {{ .Chart.Name }}-config
-            - secretRef:
-                name: {{ .Chart.Name }}-secret
           livenessProbe:
             httpGet:
               path: /healthz

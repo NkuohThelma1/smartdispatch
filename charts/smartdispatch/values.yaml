@@ -77,7 +77,7 @@ frontend-service:
   port: 80
   apiBaseUrl: "/api"
   image:
-    repository: smartdispatch-frontend
+    repository: smartdispatch-frontend-service
     tag: "latest"
     pullPolicy: IfNotPresent  # Local image present in k3d node; use IfNotPresent for demos. Prod: push to a real registry.
   hpa:

@@ -32,8 +32,13 @@ spec:
           envFrom:
             - configMapRef:
                 name: {{ .Chart.Name }}-config
-            - secretRef:
-                name: {{ .Chart.Name }}-secret
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: {{ .Values.port }}
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 30
           livenessProbe:
             httpGet:
               path: /healthz
