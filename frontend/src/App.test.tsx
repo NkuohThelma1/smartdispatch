@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import App from './App';
+import type { OrderRecord } from './types';
 
 function ok(data: unknown) {
   return new Response(JSON.stringify(data), {
@@ -19,9 +20,9 @@ function err(message: string, status = 400) {
 
 function setupFetchMock() {
   let count = 0;
-  return vi.spyOn(globalThis, 'fetch').mockImplementation((url: string) => {
+  return vi.spyOn(globalThis, 'fetch').mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+    const urlStr = typeof input === 'string' ? input : input.toString();
     count++;
-    const urlStr = typeof url === 'string' ? url : url.url;
     if (urlStr.includes('/users/signup') || urlStr.includes('/users/login')) {
       return Promise.resolve(ok({ id: 'uid', token: 'tok' }) as Response);
     }
@@ -36,10 +37,8 @@ function setupFetchMock() {
 }
 
 function setupContactMock(newContact: { name: string; phone: string }) {
-  return vi.spyOn(globalThis, 'fetch').mockImplementation((url: string) => {
-    const urlStr = typeof url === 'string' ? url : url.url;
-    const method = (url as RequestInfo).toString().startsWith('http') ? undefined : undefined;
-    
+  return vi.spyOn(globalThis, 'fetch').mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+    const urlStr = typeof input === 'string' ? input : input.toString();
     if (urlStr.includes('/users/contacts') && urlStr.includes('POST')) {
       return Promise.resolve(ok({ ok: true }) as Response);
     }
@@ -54,8 +53,8 @@ function setupContactMock(newContact: { name: string; phone: string }) {
 }
 
 function setupOrderLookupMock(orderRecord: OrderRecord) {
-  return vi.spyOn(globalThis, 'fetch').mockImplementation((url: string) => {
-    const urlStr = typeof url === 'string' ? url : url.url;
+  return vi.spyOn(globalThis, 'fetch').mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+    const urlStr = typeof input === 'string' ? input : input.toString();
     if (urlStr.includes('/orders/') && !urlStr.includes('/cancel')) {
       return Promise.resolve(ok(orderRecord) as Response);
     }
@@ -64,8 +63,8 @@ function setupOrderLookupMock(orderRecord: OrderRecord) {
 }
 
 function setupCancelMock(orderRecord: OrderRecord) {
-  return vi.spyOn(globalThis, 'fetch').mockImplementation((url: string) => {
-    const urlStr = typeof url === 'string' ? url : url.url;
+  return vi.spyOn(globalThis, 'fetch').mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+    const urlStr = typeof input === 'string' ? input : input.toString();
     if (urlStr.includes('/cancel')) {
       return Promise.resolve(ok({ status: 'cancelled' }) as Response);
     }
