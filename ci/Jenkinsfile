@@ -24,7 +24,7 @@ pipeline {
                     for (svc in services) {
                         sh """
                             pip install ruff --quiet --break-system-packages
-                            ruff check services/${svc}/app/ --select E,W,F
+                            python3 -m ruff check services/${svc}/app/ --select E,W,F
                         """
                     }
                 }
