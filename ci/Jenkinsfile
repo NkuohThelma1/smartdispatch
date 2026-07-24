@@ -86,7 +86,7 @@ pipeline {
         stage('Install Ansible') {
             steps {
                 sh """
-                    pip install ansible-core --break-system-packages
+                    pip install ansible --break-system-packages
                     which ansible-playbook
                     ansible-playbook --version
                 """
