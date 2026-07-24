@@ -1,4 +1,5 @@
-"""delivery-service: localize customer, match a delivery agent, enforce no-double-assignment.
+"""delivery-service: localize customer, match a delivery agent,
+enforce no-double-assignment.
 
 Consumes: order.placed, order.cancelled
 Produces: delivery.assigned, delivery.confirmed, delivery.completed

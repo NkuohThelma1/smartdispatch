@@ -39,7 +39,8 @@ def init() -> None:
 def record(channel: str, recipient: str, template: str, payload: str) -> int:
     with conn() as c:
         cur = c.execute(
-            "INSERT INTO notifications (channel, recipient, template, payload) VALUES (?, ?, ?, ?)",
+            "INSERT INTO notifications (channel, recipient, template, payload) "
+            "VALUES (?, ?, ?, ?)",
             (channel, recipient, template, payload),
         )
         return cur.lastrowid

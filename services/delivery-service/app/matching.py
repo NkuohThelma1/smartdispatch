@@ -25,7 +25,9 @@ class Agent(Protocol):
 
 
 class Matcher(Protocol):
-    def pick(self, customer_lat: float, customer_lon: float, agents: Iterable) -> dict | None: ...
+    def pick(
+        self, customer_lat: float, customer_lon: float, agents: Iterable
+    ) -> dict | None: ...
 
 
 class NearestMatcher:

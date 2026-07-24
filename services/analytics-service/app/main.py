@@ -12,7 +12,9 @@ import structlog
 from fastapi import FastAPI, HTTPException
 from prometheus_client import Counter, make_asgi_app
 
-from .db import init, bump_event, log_order, log_zone_hit, zone_summary, delivery_map, event_summary
+from .db import (
+    init, bump_event, log_order, log_zone_hit, zone_summary, delivery_map, event_summary
+)
 from .events import consume, health, producer, stop_producer
 
 logging.basicConfig(level=logging.INFO)

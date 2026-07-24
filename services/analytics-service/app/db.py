@@ -57,7 +57,8 @@ def bump_event(stream: str) -> None:
 def log_order(oid: str, lat: float | None, lon: float | None, mode: str | None) -> None:
     with conn() as c:
         c.execute(
-            "INSERT OR IGNORE INTO order_log (order_id, lat, lon, mode) VALUES (?, ?, ?, ?)",
+            "INSERT OR IGNORE INTO order_log (order_id, lat, lon, mode) "
+            "VALUES (?, ?, ?, ?)",
             (oid, lat, lon, mode),
         )
 
@@ -73,17 +74,21 @@ def log_zone_hit(zone_id: str, oid: str) -> None:
 def zone_summary() -> list[sqlite3.Row]:
     with conn() as c:
         return c.execute(
-            "SELECT zone_id, COUNT(*) AS hits FROM zone_hits GROUP BY zone_id ORDER BY hits DESC"
+            "SELECT zone_id, COUNT(*) AS hits FROM zone_hits "
+            "GROUP BY zone_id ORDER BY hits DESC"
         ).fetchall()
 
 
 def delivery_map() -> list[sqlite3.Row]:
     with conn() as c:
         return c.execute(
-            "SELECT lat, lon, mode, created_at FROM order_log ORDER BY created_at DESC LIMIT 500"
+            "SELECT lat, lon, mode, created_at FROM order_log "
+            "ORDER BY created_at DESC LIMIT 500"
         ).fetchall()
 
 
 def event_summary() -> list[sqlite3.Row]:
     with conn() as c:
-        return c.execute("SELECT stream, n FROM event_counts ORDER BY n DESC").fetchall()
+        return c.execute(
+            "SELECT stream, n FROM event_counts ORDER BY n DESC"
+        ).fetchall()

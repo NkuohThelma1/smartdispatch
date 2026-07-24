@@ -29,16 +29,22 @@ def init() -> None:
                 user_id      TEXT NOT NULL,
                 lat          REAL NOT NULL,
                 lon          REAL NOT NULL,
-                mode         TEXT NOT NULL CHECK(mode IN ('standard','express')),
+                mode         TEXT NOT NULL CHECK(mode IN (
+                    'standard', 'express'
+                )),
                 item_ref     TEXT,
-                status       TEXT NOT NULL CHECK(status IN ('ACTIVE','CANCELLED','DELIVERED')),
+                status       TEXT NOT NULL CHECK(status IN (
+                    'ACTIVE', 'CANCELLED', 'DELIVERED'
+                )),
                 created_at   TEXT DEFAULT CURRENT_TIMESTAMP
             );
             """
         )
 
 
-def insert_order(oid: str, uid: str, lat: float, lon: float, mode: str, item_ref: str) -> None:
+def insert_order(
+    oid: str, uid: str, lat: float, lon: float, mode: str, item_ref: str
+) -> None:
     with conn() as c:
         c.execute(
             "INSERT INTO orders (id, user_id, lat, lon, mode, item_ref, status) "
@@ -50,7 +56,8 @@ def insert_order(oid: str, uid: str, lat: float, lon: float, mode: str, item_ref
 def cancel(oid: str, uid: str) -> Optional[sqlite3.Row]:
     with conn() as c:
         c.execute(
-            "UPDATE orders SET status='CANCELLED' WHERE id=? AND user_id=? AND status='ACTIVE'",
+            "UPDATE orders SET status='CANCELLED' "
+            "WHERE id=? AND user_id=? AND status='ACTIVE'",
             (oid, uid),
         )
         return c.execute("SELECT * FROM orders WHERE id=?", (oid,)).fetchone()

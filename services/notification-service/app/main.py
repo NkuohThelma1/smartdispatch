@@ -27,7 +27,9 @@ GROUP = "notification-service"
 
 app = FastAPI(title="smartdispatch-notification-service")
 app.mount("/metrics", make_asgi_app())
-SENT = Counter("smartdispatch_notifications_sent_total", "Notifications", ["channel", "template"])
+SENT = Counter(
+    "smartdispatch_notifications_sent_total", "Notifications", ["channel", "template"]
+)
 
 TEMPLATES = {
     "delivery.assigned": (

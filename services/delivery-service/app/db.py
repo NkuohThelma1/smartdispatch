@@ -35,7 +35,9 @@ def init() -> None:
             CREATE TABLE IF NOT EXISTS assignments (
                 order_id     TEXT PRIMARY KEY,
                 agent_id     TEXT NOT NULL,
-                status       TEXT NOT NULL CHECK(status IN ('ASSIGNED','CONFIRMED','RELEASED')),
+                status       TEXT NOT NULL CHECK(status IN (
+                    'ASSIGNED', 'CONFIRMED', 'RELEASED'
+                )),
                 created_at   TEXT DEFAULT CURRENT_TIMESTAMP
             );
             CREATE TABLE IF NOT EXISTS delivery_zones (
@@ -50,7 +52,8 @@ def init() -> None:
         seed = c.execute("SELECT COUNT(*) FROM agents").fetchone()[0]
         if seed == 0:
             c.executemany(
-                "INSERT INTO agents (id, name, lat, lon, credibility) VALUES (?, ?, ?, ?, ?)",
+                "INSERT INTO agents (id, name, lat, lon, credibility) "
+                "VALUES (?, ?, ?, ?, ?)",
                 [
                     ("a1", "Agent Alpha", 4.0511, 9.7679, 0.9),
                     ("a2", "Agent Bravo", 4.0611, 9.7779, 0.8),
@@ -58,7 +61,8 @@ def init() -> None:
                 ],
             )
             c.execute(
-                "INSERT INTO delivery_zones (id, lat, lon, radius_m) VALUES (?, ?, ?, ?)",
+                "INSERT INTO delivery_zones (id, lat, lon, radius_m) "
+                "VALUES (?, ?, ?, ?)",
                 ("z1", 4.0500, 9.7700, 500.0),
             )
 
@@ -78,7 +82,8 @@ def reserve_agent_for(aid: str, order_id: str) -> bool:
             return False
         try:
             c.execute(
-                "INSERT INTO assignments (order_id, agent_id, status) VALUES (?, ?, 'ASSIGNED')",
+                "INSERT INTO assignments (order_id, agent_id, status) "
+                "VALUES (?, ?, 'ASSIGNED')",
                 (order_id, aid),
             )
         except sqlite3.IntegrityError:

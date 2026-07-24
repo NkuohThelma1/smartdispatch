@@ -3,7 +3,8 @@
 Emits: order.placed, order.cancelled
 
 Endpoints:
-  POST /orders              Bearer  { lat, lon, mode, item_ref? }  -> { order_id, status }
+  POST /orders              Bearer  { lat, lon, mode, item_ref? }
+  -> { order_id, status }
   POST /orders/{id}/cancel  Bearer                                  -> { status }
   GET  /orders/{id}                                                 -> { ... }
 """

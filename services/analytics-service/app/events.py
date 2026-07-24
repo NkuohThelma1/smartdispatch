@@ -122,7 +122,7 @@ Handler = Callable[[dict], Awaitable[None]]
 
 
 async def consume(topics: Iterable[str], group: str, handler: Handler) -> None:
-    """Consumer-group reader. Manual commit only on successful handler (at-least-once)."""
+    """Consumer-group reader with manual commit on handler success (at-least-once)."""
     consumer = AIOKafkaConsumer(
         *topics,
         bootstrap_servers=KAFKA_BOOTSTRAP,
@@ -135,7 +135,7 @@ async def consume(topics: Iterable[str], group: str, handler: Handler) -> None:
     try:
         async for msg in consumer:
             payload = msg.value
-            payload["_stream"] = msg.topic  # preserved name for back-compat with handlers
+            payload["_stream"] = msg.topic  # back-compat name for handlers
             if not await _breaker.allow():
                 continue
             try:
@@ -145,7 +145,8 @@ async def consume(topics: Iterable[str], group: str, handler: Handler) -> None:
             except Exception as exc:
                 await _breaker.record_failure()
                 log.error(
-                    "consumer.handler.failed topic=%s partition=%s offset=%s key=%r error=%s",
+                    "consumer.handler.failed topic=%s partition=%s offset=%s key=%r"
+                    " error=%s",
                     msg.topic,
                     msg.partition,
                     msg.offset,
