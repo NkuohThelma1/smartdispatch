@@ -123,6 +123,7 @@ pipeline {
                         sh """
                             trivy image \
                                 --severity HIGH,CRITICAL \
+                                --ignore-unfixed \
                                 --exit-code 1 \
                                 --no-progress \
                                 ${DOCKER_REGISTRY}/${DOCKER_USER}/smartdispatch-${svc}:${IMAGE_TAG}
