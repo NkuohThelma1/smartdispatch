@@ -28,7 +28,9 @@ def init() -> None:
                 id            TEXT PRIMARY KEY,
                 phone         TEXT UNIQUE NOT NULL,
                 pwd_hash      TEXT NOT NULL,
-                role          TEXT NOT NULL CHECK(role IN ('customer','agent','business')),
+                role          TEXT NOT NULL CHECK(role IN (
+                    'customer', 'agent', 'business'
+                )),
                 credibility   REAL NOT NULL DEFAULT 1.0,
                 created_at    TEXT DEFAULT CURRENT_TIMESTAMP
             );

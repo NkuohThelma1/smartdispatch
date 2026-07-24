@@ -4,7 +4,7 @@ Emits: user.registered
 Endpoints:
   POST /signup    { phone, password, role }                -> { id, token }
   POST /login     { phone, password }                      -> { id, token }
-  GET  /me                                                 -> { id, phone, role, credibility }
+  GET  /me                            -> { id, phone, role, credibility }
   POST /contacts  { name, phone }                          -> 201
   GET  /contacts                                           -> [ { name, phone } ]
 """
