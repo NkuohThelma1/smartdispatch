@@ -39,7 +39,8 @@ pipeline {
                         pip install -r services/\$svc/requirements.txt --quiet --break-system-packages
                     done
                     pip install httpx2 --quiet --break-system-packages
-                    python3 -m unittest discover -s tests -p 'test_*.py'
+                    python3 -m pip install coverage --quiet --break-system-packages
+                    python3 -m coverage run -m unittest discover -s tests -p 'test_*.py'
                 """
             }
         }
@@ -48,8 +49,7 @@ pipeline {
         stage('Coverage Enforcement') {
             steps {
                 script {
-                    sh 'pip install coverage --quiet --break-system-packages'
-                    sh 'coverage report --fail-under=80'
+                    sh 'python3 -m coverage report --fail-under=80'
                     docker.image('node:20-slim').inside('-u node -e HOME=/tmp') {
                         dir('frontend') {
                             // Ensure workspace is writable by the non-root node user
