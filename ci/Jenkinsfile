@@ -48,6 +48,7 @@ pipeline {
         stage('Coverage Enforcement') {
             steps {
                 script {
+                    sh 'pip install coverage --quiet --break-system-packages'
                     sh 'coverage report --fail-under=80'
                     docker.image('node:20-slim').inside('-u node -e HOME=/tmp') {
                         dir('frontend') {
