@@ -12,7 +12,7 @@ pipeline {
         KUBECONFIG        = credentials('kubeconfig-smartdispatch')
         BACKEND_SERVICES  = "user-service order-service delivery-service notification-service analytics-service"
         ALL_SERVICES      = "user-service order-service delivery-service notification-service analytics-service frontend-service"
-        PATH              = "${env.PATH}:/usr/local/bin"
+        PATH              = "${env.PATH}:/usr/local/bin:~/.local/bin"
     }
 
     stages {
@@ -87,6 +87,9 @@ pipeline {
             steps {
                 sh """
                     pip install ansible --break-system-packages
+                    ANSIBLE_BIN=\$(python3 -c "import site; print(site.USER_BASE + '/bin')")
+                    export PATH="\$ANSIBLE_BIN:\$PATH"
+                    echo "Ansible bin directory: \$ANSIBLE_BIN"
                     which ansible-playbook
                     ansible-playbook --version
                 """
