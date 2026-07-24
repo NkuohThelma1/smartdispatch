@@ -34,7 +34,7 @@ pipeline {
         // ── Stage 2: Unit Tests ───────────────────────────────────────────────
         stage('Unit Tests') {
             steps {
-                sh "python -m unittest discover -s tests -p 'test_*.py'"
+                sh "python3 -m unittest discover -s tests -p 'test_*.py'"
             }
         }
 
