@@ -23,7 +23,7 @@ pipeline {
                     def services = env.BACKEND_SERVICES.tokenize()
                     for (svc in services) {
                         sh """
-                            pip install ruff --quiet
+                            pip install ruff --quiet --break-system-packages
                             ruff check services/${svc}/app/ --select E,W,F
                         """
                     }
@@ -77,7 +77,7 @@ pipeline {
         // ── Stage 5: Install Ansible ─────────────────────────────────────────
         stage('Install Ansible') {
             steps {
-                sh "pip install ansible-core --quiet"
+                sh "pip install ansible-core --quiet --break-system-packages"
             }
         }
 
