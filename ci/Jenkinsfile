@@ -12,6 +12,7 @@ pipeline {
         KUBECONFIG        = credentials('kubeconfig-smartdispatch')
         BACKEND_SERVICES  = "user-service order-service delivery-service notification-service analytics-service"
         ALL_SERVICES      = "user-service order-service delivery-service notification-service analytics-service frontend-service"
+        PATH              = "${env.PATH}:/usr/local/bin"
     }
 
     stages {
@@ -83,11 +84,12 @@ pipeline {
 
         // ── Stage 5: Install Ansible ─────────────────────────────────────────
         stage('Install Ansible') {
-            environment {
-                PATH = "${env.PATH}:/usr/local/bin"
-            }
             steps {
-                sh "pip install ansible-core --quiet --break-system-packages"
+                sh """
+                    pip install ansible-core --break-system-packages
+                    which ansible-playbook
+                    ansible-playbook --version
+                """
             }
         }
 
@@ -154,9 +156,6 @@ pipeline {
 
         // ── Stage 9: Ansible Bootstrap (staging) ─────────────────────────────
         stage('Ansible Bootstrap (staging)') {
-            environment {
-                PATH = "${env.PATH}:/usr/local/bin"
-            }
             steps {
                 sh """
                     ansible-playbook -i ansible/inventory/hosts.ini ansible/playbooks/bootstrap.yml
@@ -166,9 +165,6 @@ pipeline {
 
         // ── Stage 10: Ansible Deploy (staging) ────────────────────────────────
         stage('Ansible Deploy (staging)') {
-            environment {
-                PATH = "${env.PATH}:/usr/local/bin"
-            }
             steps {
                 sh """
                     ansible-playbook -i ansible/inventory/hosts.ini ansible/playbooks/deploy.yml \
@@ -219,9 +215,6 @@ pipeline {
 
         // ── Stage 13: Ansible Deploy (prod) ──────────────────────────────────
         stage('Ansible Deploy (prod)') {
-            environment {
-                PATH = "${env.PATH}:/usr/local/bin"
-            }
             steps {
                 sh """
                     ansible-playbook -i ansible/inventory/hosts.ini ansible/playbooks/deploy.yml \
