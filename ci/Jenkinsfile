@@ -87,7 +87,9 @@ pipeline {
             steps {
                 script {
                     sh 'pip install ansible --break-system-packages'
-                    def ansibleBin = sh(script: "python3 -c 'import site; print(site.USER_BASE + \"/bin\")'", returnStdout: true).trim()
+                    sh 'python3 -c "import site; print(site.USER_BASE)" > ansible_user_base.txt'
+                    def userBase = readFile('ansible_user_base.txt').trim()
+                    def ansibleBin = "${userBase}/bin"
                     env.PATH = "${ansibleBin}:${env.PATH}"
                     sh 'which ansible-playbook && ansible-playbook --version'
                 }
